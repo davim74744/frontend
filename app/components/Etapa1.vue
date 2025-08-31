@@ -85,7 +85,7 @@ const name = ref('');
 const email = ref('');
 const CPF = ref('');
 const phone = ref('');
-const showForm = ref(true);
+const showForm = ref(false);
 
 const isFormValid = computed(() => {
   return name.value.trim() && email.value.trim() && CPF.value.trim() && phone.value.trim();

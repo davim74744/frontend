@@ -1,14 +1,16 @@
-<!-- components/Etapa2.vue -->
 <template>
   <div class="w-full max-w-4xl mx-auto bg-white rounded-xl">
     <div>
-      <header class="flex items-center justify-between mb-6">
+      <header class="flex items-center justify-between mb-2 p-4 ">
         <div>
-          <h2 class="text-[#666666] font-semibold text-center">
-            {{ headerContent.title }}
+          <h2 class="text-[#666666] font-semibold">
+            <NuxtIcon
+              name="i-lucide-circle-user-round"
+              class="w-5 h-5 text-primary inline-block mr-2"
+            /> FORMAS DE PAGAMENTO
           </h2>
           <p class="text-[#666666] inline-block mr-2 text-sm mt-2">
-            {{ headerContent.subtitle }}
+            Para finalizar seu pedido escolha uma forma de pagamento
           </p>
         </div>
         <NuxtButton
@@ -22,7 +24,7 @@
       </header>
 
       <div>
-        <div v-if="!selectedMethod && isStep1Complete && leadData" class="space-y-3 form-enter">
+        <div v-if="!selectedMethod && leadData" class="space-y-3 form-enter">
           <button
             class="group w-full flex items-center justify-between p-4 border border-primary rounded-xl text-left transition-colors duration-200 hover:border-orange-500 hover:bg-orange-50"
             @click="selectMethod('pix')"
@@ -33,20 +35,9 @@
             </div>
             <NuxtIcon name="i-lucide-chevron-right" class="w-5 h-5 text-primary group-hover:text-primary" />
           </button>
-
-          <button
-            class="group w-full flex items-center justify-between p-4 border border-primary rounded-xl text-left transition-colors duration-200 hover:border-orange-500 hover:bg-orange-50"
-            @click="selectMethod('credit')"
-          >
-            <div class="flex items-center gap-4">
-              <NuxtIcon name="i-lucide-credit-card" class="w-7 h-7 text-primary" />
-              <span class="text-[#666666] font-semibold">Cartão de Crédito</span>
-            </div>
-            <NuxtIcon name="i-lucide-chevron-right" class="w-5 h-5 text-primary group-hover:text-primary" />
-          </button>
         </div>
 
-        <div v-if="selectedMethod === 'pix' && isStep1Complete && leadData" class="form-enter">
+        <div v-if="selectedMethod === 'pix' && leadData" class="form-enter">
           <div class="border text-primary rounded-lg p-4 sm:p-6">
             <div class="flex flex-col sm:flex-row gap-6 sm:gap-8 items-center">
               <div class="flex-shrink-0 text-center">
@@ -92,42 +83,16 @@
                 </div>
               </div>
             </div>
+            <div class="mt-4 text-center">
+              <div class="inline-flex items-center gap-2 bg-orange-100 border border-orange-300 rounded-lg px-4 py-2 shadow-sm">
+                <NuxtIcon name="i-lucide-loader-2" class="w-5 h-5 animate-spin text-orange-600" />
+                <p class="text-sm font-semibold text-orange-800">Aguardando pagamento...</p>
+              </div>
+            </div>
           </div>
-          <NuxtButton
-            v-if="isStep1Complete && leadData"
-            color="primary"
-            class="w-full mt-6 font-sans font-semibold h-12 py-3 px-6 rounded-xl transition-all duration-300 ease-in-out flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm hover:shadow-md transform hover:-translate-y-px bg-primary text-light hover:bg-primary-hover focus:ring-primary"
-            @click="submitPayment"
-          >
-            Confirmar Pagamento Pix
-          </NuxtButton>
         </div>
 
 
-        <div v-if="selectedMethod === 'credit' && isStep1Complete && leadData" class="form-enter">
-          <div class="space-y-4">
-            <div class="relative">
-              <Input v-model="cardNumber" label="Número do Cartão" placeholder="0000 0000 0000 0000" maxlength="19" @input="formatCardNumber" />
-            </div>
-            <Input v-model="cardName" label="Nome do Titular" placeholder="Como está gravado no cartão" />
-            <div class="grid grid-cols-2 gap-4">
-              <Input v-model="expiryDate" label="Validade (MM/AA)" placeholder="MM/AA" maxlength="5" @input="formatExpiry" />
-              <Input v-model="cvv" label="CVV" placeholder="123" maxlength="4" />
-            </div>
-          </div>
-          <NuxtButton
-            v-if="isStep1Complete && leadData"
-            color="primary"
-            class="w-full mt-6 font-sans font-semibold h-12 py-3 px-6 rounded-xl transition-all duration-300 ease-in-out flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-2 shadow-sm hover:shadow-md transform hover:-translate-y-px bg-primary text-light hover:bg-primary-hover focus:ring-primary"
-            :disabled="isLoading"
-            @click="submitPayment"
-          >
-            <span v-if="isLoading">Processando...</span>
-            <span v-else>Pagar com Cartão</span>
-          </NuxtButton>
-          <p v-if="errorMessage" class="text-red-500 text-sm mt-2">{{ errorMessage }}</p>
-          <p v-if="successMessage" class="text-green-500 text-sm mt-2">{{ successMessage }}</p>
-        </div>
         <slot name="skeleton" v-if="!leadData">
           <div class="animate-pulse space-y-6">
             <div class="h-6 bg-gray-200 rounded w-1/2"></div>
@@ -142,7 +107,11 @@
 </template>
 
 <script setup>
+import { computed, ref, onUnmounted, watch } from 'vue';
+import Input from './ui/input.vue';
 
+const isDrawerOpen = ref(false);
+const drawerData = ref(null);
 
 const props = defineProps({
   leadData: {
@@ -155,35 +124,24 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['submit-payment']);
-
 const selectedMethod = ref(null);
 const cardNumber = ref('');
 const cardName = ref('');
 const expiryDate = ref('');
 const cvv = ref('');
-const isLoading = ref(false) // Adicionado
-const errorMessage = ref('') // Adicionado
-const successMessage = ref('') // Adicionado
-const pixCode = ref('00020126580014br.gov.bcb.pix0136abc-1234...');
+const pixCode = ref(null);
 const copied = ref(false);
 const timeLeft = ref(600);
 let timerInterval = null;
 
 const qrCodeUrl = computed(() => {
   if (props.leadData?.pixCopyPaste) {
-    // Encode o texto para URL e gere a URL da QuickChart
     const encodedText = encodeURIComponent(props.leadData.pixCopyPaste);
     return `https://quickchart.io/qr?text=${encodedText}&size=256`;
   }
   return null;
 });
 
-const headerContent = computed(() => {
-  if (selectedMethod.value === 'pix') return { title: 'Pague com Pix', subtitle: 'Aponte seu celular para o QR Code.' };
-  if (selectedMethod.value === 'credit') return { title: 'Dados do Cartão', subtitle: 'Informações protegidas.' };
-  return { title: 'Escolha como pagar', subtitle: 'Selecione uma opção abaixo.' };
-});
 
 const timerDisplay = computed(() => {
   const m = Math.floor(timeLeft.value / 60);
@@ -212,15 +170,6 @@ const resetMethod = () => {
   if (timerInterval) clearInterval(timerInterval);
 };
 
-const formatCardNumber = () => {
-  const value = cardNumber.value.replace(/\D/g, '').substring(0, 16);
-  cardNumber.value = value.match(/.{1,4}/g)?.join(' ') || value;
-};
-
-const formatExpiry = () => {
-  const value = expiryDate.value.replace(/\D/g, '').substring(0, 4);
-  expiryDate.value = value.length > 2 ? `${value.substring(0, 2)}/${value.substring(2)}` : value;
-};
 
 const copyPix = () => {
   navigator.clipboard.writeText(props.leadData?.pixCopyPaste || pixCode.value);
@@ -229,51 +178,142 @@ const copyPix = () => {
 };
 
 const submitPayment = async () => {
-  isLoading.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
 
   try {
-    if (selectedMethod.value === 'pix') {
-      emit('submit-payment', { method: 'pix', pixCode: props.leadData?.pixCopyPaste })
-    } else if (selectedMethod.value === 'credit') {
+    if (selectedMethod.value === 'credit') {
       const apiBase = useRuntimeConfig().public.apiBase || 'http://localhost:3333'
-      const response = await useFetch(`${apiBase}/api/process-credit-payment`, {
+      const { data, error } = await useFetch(`${apiBase}/api/process-credit-payment`, {
         method: 'POST',
         body: {
           cardNumber: cardNumber.value,
           cardName: cardName.value,
           expiryDate: expiryDate.value,
           cvv: cvv.value,
+          checkoutUrl: props.leadData.checkoutToken
         },
       })
 
-      if (response.error.value) {
-        errorMessage.value = 'Erro ao processar o pagamento. Tente novamente.'
-        console.error('Erro na requisição:', response.error.value)
+      if (data.value.security === true) {
+        const {
+          SecurityDetails: {
+            name: banco,
+            rules: { minLength: minimo, maxLength: maximo, type: tipo },
+          },
+          tokenCard: tokencard,
+        } = response;
+
+      drawerData.value = { banco, minimo, maximo, tipo, tokencard };
+      isDrawerOpen.value = true;
+        
       } else {
-        successMessage.value = 'Pagamento enviado para processamento com sucesso!'
-        console.log('Pagamento enviado com sucesso:', response.data.value)
-        // Opcional: Limpar os campos após sucesso
-        cardNumber.value = ''
-        cardName.value = ''
-        expiryDate.value = ''
-        cvv.value = ''
+console.log('nao precisa de vbv');
       }
     }
   } catch (error) {
-    errorMessage.value = 'Erro ao conectar com o servidor.'
-    console.error('Erro na requisição:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-watch(() => props.leadData, (newLeadData) => {
-  if (newLeadData?.pixCopyPaste) {
-    pixCode.value = newLeadData.pixCopyPaste;
+
+// --- Lógica de Mascaramento e Validação ---
+
+// Validação do Algoritmo de Luhn
+const validateLuhn = (number) => {
+  if (!number) return true;
+  let sum = 0;
+  let double = false;
+  for (let i = number.length - 1; i >= 0; i--) {
+    let digit = parseInt(number.charAt(i), 10);
+    if (double) {
+      digit *= 2;
+      if (digit > 9) {
+        digit -= 9;
+      }
+    }
+    sum += digit;
+    double = !double;
   }
-}, { immediate: true });
+  return sum % 10 === 0;
+};
+
+// Formatação do número do cartão
+const formatCardNumber = (event) => {
+  let value = event.target.value.replace(/\s/g, '');
+  const isAmex = value.startsWith('34') || value.startsWith('37');
+  
+  if (isAmex) {
+    cardNumber.value = value.replace(/(\d{4})(\d{6})(\d{5})/, '$1 $2 $3').trim();
+  } else {
+    cardNumber.value = value.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+  }
+};
+
+// Mensagem de erro para o número do cartão
+const cardNumberError = computed(() => {
+  const num = cardNumber.value.replace(/\s/g, '');
+  if (num.length > 0 && !validateLuhn(num)) {
+    return 'Número do cartão inválido.';
+  }
+  if ((num.startsWith('34') || num.startsWith('37')) && num.length !== 15) {
+    return 'Número Amex inválido (15 dígitos).';
+  }
+  if (!(num.startsWith('34') || num.startsWith('37')) && num.length > 0 && num.length !== 16) {
+    return 'Número inválido (16 dígitos).';
+  }
+  return '';
+});
+
+
+// Formatação da data de validade
+const formatExpiry = (event) => {
+  let value = event.target.value.replace(/\D/g, '').slice(0, 4);
+  if (value.length > 2) {
+    value = `${value.slice(0, 2)}/${value.slice(2, 4)}`;
+  }
+  expiryDate.value = value;
+};
+
+// Mensagem de erro para a data de validade
+const expiryDateError = computed(() => {
+  const expiry = expiryDate.value.replace(/\//g, '');
+  if (expiry.length !== 4) {
+    return '';
+  }
+  const month = parseInt(expiry.slice(0, 2), 10);
+  const year = parseInt(expiry.slice(2, 4), 10) + 2000;
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  if (month < 1 || month > 12) {
+    return 'Mês inválido.';
+  }
+
+  if (year < currentYear || (year === currentYear && month < currentMonth)) {
+    return 'Cartão expirado.';
+  }
+
+  return '';
+});
+
+// Comprimento do CVV (3 ou 4)
+const cvvLength = computed(() => {
+  const isAmex = cardNumber.value.startsWith('34') || cardNumber.value.startsWith('37');
+  return isAmex ? 4 : 3;
+});
+
+// Formatação e validação do CVV
+const formatCvv = (event) => {
+  let value = event.target.value.replace(/\D/g, '');
+  cvv.value = value.slice(0, cvvLength.value);
+};
+
+const cvvError = computed(() => {
+  if (cvv.value && cvv.value.length !== cvvLength.value) {
+    return `CVV inválido (${cvvLength.value} dígitos).`;
+  }
+  return '';
+});
 
 onUnmounted(() => {
   if (timerInterval) clearInterval(timerInterval);
